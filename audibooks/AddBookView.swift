@@ -237,7 +237,8 @@ struct AddBookView: View {
             let languages = try await asset.load(.availableChapterLocales)
 
             guard let locale = languages.first else {
-                return []
+                // No embedded chapters, generate synthetic chapters
+                return await generateSyntheticChapters(filePath: filePath)
             }
 
             let chapterGroups = try await asset.loadChapterMetadataGroups(withTitleLocale: locale, containingItemsWithCommonKeys: [.commonKeyArtwork])
@@ -261,10 +262,49 @@ struct AddBookView: View {
                 chapters.append(chapter)
             }
 
+            // If no chapters were extracted, generate synthetic chapters
+            if chapters.isEmpty {
+                return await generateSyntheticChapters(filePath: filePath)
+            }
+
             return chapters
         } catch {
+            // On error, try to generate synthetic chapters
+            return await generateSyntheticChapters(filePath: filePath)
+        }
+    }
+
+    private func generateSyntheticChapters(filePath: String) async -> [Chapter] {
+        // Get the total duration of the audio file
+        let totalDuration = await getAudioDurationFromLocalFile(filePath: filePath)
+
+        // If duration is 0 or very short, don't create chapters
+        guard totalDuration > 0 else {
             return []
         }
+
+        let chapterInterval: Double = 1800 // 30 minutes in seconds
+        var chapters: [Chapter] = []
+
+        var currentTime: Double = 0
+        var chapterNumber = 1
+
+        while currentTime < totalDuration {
+            let remainingTime = totalDuration - currentTime
+            let chapterDuration = min(chapterInterval, remainingTime)
+
+            let chapter = Chapter(
+                title: "Chapter \(chapterNumber)",
+                startTime: currentTime,
+                duration: chapterDuration
+            )
+            chapters.append(chapter)
+
+            currentTime += chapterInterval
+            chapterNumber += 1
+        }
+
+        return chapters
     }
 }
 

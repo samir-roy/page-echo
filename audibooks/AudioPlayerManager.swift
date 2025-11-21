@@ -171,19 +171,8 @@ class AudioPlayerManager: NSObject, ObservableObject {
             return .success
         }
 
-        // Change playback position command
-        commandCenter.changePlaybackPositionCommand.isEnabled = true
-        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
-            guard let self = self,
-                  let event = event as? MPChangePlaybackPositionCommandEvent else {
-                return .commandFailed
-            }
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                self.seek(to: event.positionTime)
-            }
-            return .success
-        }
+        // Change playback position command - disabled to prevent scrubbing in system controls
+        commandCenter.changePlaybackPositionCommand.isEnabled = false
     }
 
     private func setupInterruptionHandling() {
