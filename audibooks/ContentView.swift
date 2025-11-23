@@ -14,36 +14,26 @@ struct ContentView: View {
     @Query private var audiobooks: [Audiobook]
     @StateObject private var playerManager = AudioPlayerManager()
     @State private var showingAddBook = false
-    @State private var hasLoadedLastBook = false
-    @State private var isPlayerExpanded = false
+    @State private var showingBookSelection = false
+    @State private var hasLoadedInitialBook = false
 
     var body: some View {
-        NavigationStack {
-            AudiobookListView(
+        AudioPlayerView(
+            playerManager: playerManager,
+            showingAddBook: $showingAddBook,
+            onShowBookSelection: {
+                showingBookSelection = true
+            }
+        )
+        .sheet(isPresented: $showingBookSelection) {
+            BookSelectionView(
                 playerManager: playerManager,
                 showingAddBook: $showingAddBook,
                 onBookSelect: { audiobook in
-                    isPlayerExpanded = true
                     playerManager.loadAudiobook(audiobook)
                     if !playerManager.isPlaying {
                         playerManager.togglePlayPause()
                     }
-                }
-            )
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Page Echo")
-                        .font(.headline)
-                }
-            }
-        }
-        .sheet(isPresented: $isPlayerExpanded) {
-            AudioPlayerView(
-                playerManager: playerManager,
-                onCollapse: {
-                    isPlayerExpanded = false
                 }
             )
         }
@@ -52,6 +42,10 @@ struct ContentView: View {
         }
         .onAppear {
             playerManager.setModelContext(modelContext)
+            if !hasLoadedInitialBook {
+                loadInitialBook()
+                hasLoadedInitialBook = true
+            }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
@@ -62,6 +56,25 @@ struct ContentView: View {
             @unknown default:
                 break
             }
+        }
+    }
+
+    private func loadInitialBook() {
+        // First, try to load the last played book
+        if let lastPlayedID = UserDefaults.standard.lastPlayedAudiobookID,
+           let uuid = UUID(uuidString: lastPlayedID),
+           let lastPlayedBook = audiobooks.first(where: { $0.id == uuid }) {
+            playerManager.loadAudiobook(lastPlayedBook)
+            return
+        }
+
+        // If no last played book, load the most recently added book
+        if let mostRecentBook = audiobooks.sorted(by: { book1, book2 in
+            let date1 = book1.lastPlayedDate ?? Date.distantPast
+            let date2 = book2.lastPlayedDate ?? Date.distantPast
+            return date1 > date2
+        }).first {
+            playerManager.loadAudiobook(mostRecentBook)
         }
     }
 }

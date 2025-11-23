@@ -38,7 +38,7 @@ struct CustomProgressBar: View {
                 RoundedRectangle(cornerRadius: isDragging ? 8 : 4)
                     .fill(Color.primary)
                     .frame(
-                        width: max(0, geometry.size.width * progress),
+                        width: max(isDragging ? 16 : 8, geometry.size.width * progress),
                         height: isDragging ? 16 : 8
                     )
             }
@@ -106,194 +106,158 @@ struct AudioPlayerView: View {
     @State private var showChaptersList = false
     @State private var showSpeedPicker = false
     @State private var showSleepTimer = false
-    var onCollapse: () -> Void
+    @State private var showBookSelection = false
+    var showingAddBook: Binding<Bool>
+    var onShowBookSelection: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 40, height: 5)
-                .padding(.vertical, 8)
-                .onTapGesture {
-                    onCollapse()
+        VStack(spacing: 12) {
+            Spacer()
+
+            // Album art
+            Group {
+                if let audiobook = playerManager.currentAudiobook {
+                    Group {
+                        if let coverData = audiobook.coverImageData,
+                           let uiImage = UIImage(data: coverData) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .aspectRatio(1, contentMode: .fit)
+                                .cornerRadius(16)
+                                .clipped()
+                        } else if let coverURL = audiobook.coverImageURL,
+                                  let url = URL(string: coverURL) {
+                            AsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(1, contentMode: .fit)
+                            } placeholder: {
+                                placeholderCover
+                            }
+                            .cornerRadius(16)
+                            .clipped()
+                        } else {
+                            placeholderCover
+                        }
+
+                        ProgressView(value: audiobook.percentComplete, total: 100.0)
+                            .progressViewStyle(.linear)
+                            .tint(.primary)
+                            .padding(.horizontal, 60)
+                            .padding(.top, 8)
+                    }
+                } else {
+                    emptyStateCover
+                    ProgressView(value: 0.0, total: 100.0)
+                        .progressViewStyle(.linear)
+                        .tint(.primary)
+                        .padding(.horizontal, 60)
+                        .padding(.top, 8)
                 }
+            }
+            .padding(.horizontal, 20)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onShowBookSelection()
+            }
 
             Spacer()
 
-            if let audiobook = playerManager.currentAudiobook {
-                // Album art
-                Group {
-                    if let coverData = audiobook.coverImageData,
-                       let uiImage = UIImage(data: coverData) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .aspectRatio(1, contentMode: .fit)
-                            .cornerRadius(16)
-                            .clipped()
-                    } else if let coverURL = audiobook.coverImageURL,
-                              let url = URL(string: coverURL) {
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(1, contentMode: .fit)
-                        } placeholder: {
-                            placeholderCover
-                        }
-                        .cornerRadius(16)
-                        .clipped()
-                    } else {
-                        placeholderCover
+            // Chapter navigation (if chapters exist)
+            if let audiobook = playerManager.currentAudiobook,
+               !audiobook.chapters.isEmpty,
+               let chapter = playerManager.currentChapter {
+                HStack(spacing: 16) {
+                    // Previous chapter button
+                    Button(action: {
+                        playerManager.previousChapter()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                    }
+
+                    // Chapter button
+                    Button(action: {
+                        showChaptersList = true
+                    }) {
+                        Text(chapter.title)
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.secondary.opacity(0.2))
+                            .cornerRadius(8)
+                    }
+
+                    // Next chapter button
+                    Button(action: {
+                        playerManager.nextChapter()
+                    }) {
+                        Image(systemName: "chevron.right")
+                            .font(.title3)
+                            .foregroundColor(.primary)
                     }
                 }
-                .padding(.horizontal, 20)
-
-                Spacer()
-
-                Text(audiobook.title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
-                    .multilineTextAlignment(.center)
-
-                // Chapter navigation (if chapters exist)
-                if !audiobook.chapters.isEmpty, let chapter = playerManager.currentChapter {
-                    HStack(spacing: 16) {
-                        // Previous chapter button
-                        Button(action: {
-                            playerManager.previousChapter()
-                        }) {
-                            Image(systemName: "chevron.left")
-                                .font(.title3)
-                                .foregroundColor(.primary)
-                        }
-
-                        // Chapter button
-                        Button(action: {
-                            showChaptersList = true
-                        }) {
-                            Text(chapter.title)
-                                .font(.caption)
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.secondary.opacity(0.2))
-                                .cornerRadius(8)
-                        }
-
-                        // Next chapter button
-                        Button(action: {
-                            playerManager.nextChapter()
-                        }) {
-                            Image(systemName: "chevron.right")
-                                .font(.title3)
-                                .foregroundColor(.primary)
-                        }
-                    }
-                    .padding(.top, 8)
-                }
-            } else {
-                Text("No audiobook selected")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
             }
 
             Spacer()
 
             VStack(spacing: 4) {
-                // Scrubber
-                if let currentChapter = playerManager.currentChapter {
-                    // Chapter-based scrubber
-                    CustomProgressBar(
-                        value: playerManager.currentTime,
-                        range: currentChapter.startTime...currentChapter.endTime,
-                        onSeek: { playerManager.seek(to: $0) },
-                        isDisabled: playerManager.currentAudiobook == nil
-                    )
-                    
-                    // Time labels (chapter-relative)
-                    ZStack {
-                        let remainingSeconds = playerManager.duration - playerManager.currentTime
-                        let adjustedRemaining = remainingSeconds / Double(playerManager.playbackSpeed)
-                        Text(formatRemainingTime(adjustedRemaining, speed: playerManager.playbackSpeed))
+                let values = progressValues()
+
+                // Progress bar
+                CustomProgressBar(
+                    value: playerManager.currentTime,
+                    range: values.range,
+                    onSeek: { playerManager.seek(to: $0) },
+                    isDisabled: playerManager.currentAudiobook == nil
+                )
+
+                // Time labels
+                ZStack {
+                    let remainingSeconds = playerManager.duration - playerManager.currentTime
+                    let adjustedRemaining = remainingSeconds / Double(playerManager.playbackSpeed)
+                    // Playback speed
+                    Button {
+                        showSpeedPicker = true
+                    } label: {
+                        Text("(\(formatRemainingTime(adjustedRemaining)) @ \(playerManager.playbackSpeed, specifier: "%.2f")x)")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
-                        HStack {
-                            Text((playerManager.currentTime - currentChapter.startTime).formattedTime())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .monospacedDigit()
-                            
-                            Spacer()
-                            
-                            Text("-" + (currentChapter.endTime - playerManager.currentTime).formattedTime())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .monospacedDigit()
-                        }
+                            .padding(.horizontal, 12)
                     }
-                } else {
-                    // Book-wide scrubber (no chapters)
-                    CustomProgressBar(
-                        value: playerManager.currentTime,
-                        range: 0...max(playerManager.duration, 0.1),
-                        onSeek: { playerManager.seek(to: $0) },
-                        isDisabled: playerManager.currentAudiobook == nil
-                    )
-                    
-                    // Time labels (book-relative)
-                    ZStack {
-                        let remainingSeconds = playerManager.duration - playerManager.currentTime
-                        let adjustedRemaining = remainingSeconds / Double(playerManager.playbackSpeed)
-                        Text(formatRemainingTime(adjustedRemaining, speed: playerManager.playbackSpeed))
+                    .disabled(playerManager.currentAudiobook == nil)
+
+                    HStack {
+                        Text(values.elapsed.formattedTime())
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
-                        HStack {
-                            Text(playerManager.currentTime.formattedTime())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .monospacedDigit()
-                            
-                            Spacer()
-                            
-                            Text("-" + (playerManager.duration - playerManager.currentTime).formattedTime())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .monospacedDigit()
-                        }
+                            .monospacedDigit()
+
+                        Spacer()
+
+                        Text("-" + (values.end - playerManager.currentTime).formattedTime())
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
                     }
                 }
             }
             .padding(.horizontal)
-            .padding(.top, 16)
+            .padding(.top, 10)
 
             Spacer()
 
             // Playback controls
-            HStack(spacing: 24) {
-                // Playback speed
-                Button {
-                    showSpeedPicker = true
-                } label: {
-                    Text("\(playerManager.playbackSpeed, specifier: "%.2f")x")
-                        .font(.caption)
-                        .foregroundColor(.primary)
-                        .frame(width: 50)
-                        .padding(.vertical, 6)
-                        .background(Color.secondary.opacity(0.2))
-                        .cornerRadius(8)
-                }
-                .disabled(playerManager.currentAudiobook == nil)
-
+            HStack(spacing: 40) {
                 // Skip backward 15s
                 Button(action: {
                     playerManager.skipBackward(15)
                 }) {
                     Image(systemName: "gobackward.15")
-                        .font(.title2)
+                        .font(.system(size: 30))
                         .foregroundColor(.primary)
                 }
                 .disabled(playerManager.currentAudiobook == nil)
@@ -303,7 +267,7 @@ struct AudioPlayerView: View {
                     playerManager.togglePlayPause()
                 }) {
                     Image(systemName: playerManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.system(size: 72))
+                        .font(.system(size: 80))
                         .foregroundColor(.primary)
                 }
                 .disabled(playerManager.currentAudiobook == nil)
@@ -313,36 +277,28 @@ struct AudioPlayerView: View {
                     playerManager.skipForward(30)
                 }) {
                     Image(systemName: "goforward.30")
-                        .font(.title2)
+                        .font(.system(size: 30))
                         .foregroundColor(.primary)
                 }
                 .disabled(playerManager.currentAudiobook == nil)
-
-                // Sleep timer
-                Button {
-                    showSleepTimer = true
-                } label: {
-                    if let remaining = playerManager.sleepTimerRemaining {
-                        Text(formatTimerRemaining(remaining))
-                            .font(.caption)
-                            .foregroundColor(.primary)
-                            .frame(width: 50)
-                            .padding(.vertical, 6)
-                            .background(Color.secondary.opacity(0.2))
-                            .cornerRadius(8)
-                    } else {
-                        Text("Sleep")
-                            .font(.caption)
-                            .foregroundColor(.primary)
-                            .frame(width: 50)
-                            .padding(.vertical, 6)
-                            .background(Color.secondary.opacity(0.2))
-                            .cornerRadius(8)
-                    }
-                }
-                .disabled(playerManager.currentAudiobook == nil)
             }
-            .padding(.bottom, 40)
+
+            Spacer()
+
+            // Sleep timer
+            Button {
+                showSleepTimer = true
+            } label: {
+                Text(playerManager.sleepTimerRemaining.map { formatTimerRemaining($0) } ?? "Sleep")
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .frame(width: 50)
+                    .padding(.vertical, 6)
+                    .background(Color.secondary.opacity(0.2))
+                    .cornerRadius(8)
+            }
+            .disabled(playerManager.currentAudiobook == nil)
+            .padding(.bottom, 10)
         }
         .padding()
         .background(Color(UIColor.systemBackground))
@@ -396,6 +352,24 @@ struct AudioPlayerView: View {
         }
     }
 
+    private func progressValues() -> (range: ClosedRange<Double>, elapsed: Double, end: Double) {
+        if let currentChapter = playerManager.currentChapter {
+            // Chapter-based values
+            return (
+                range: currentChapter.startTime...currentChapter.endTime,
+                elapsed: playerManager.currentTime - currentChapter.startTime,
+                end: currentChapter.endTime
+            )
+        } else {
+            // Book-wide values
+            return (
+                range: 0...max(playerManager.duration, 0.1),
+                elapsed: playerManager.currentTime,
+                end: playerManager.duration
+            )
+        }
+    }
+
     private func formatTimerRemaining(_ timeInterval: TimeInterval) -> String {
         let totalSeconds = Int(timeInterval)
         let minutes = totalSeconds / 60
@@ -408,7 +382,7 @@ struct AudioPlayerView: View {
         }
     }
 
-    private func formatRemainingTime(_ timeInSeconds: Double, speed: Float) -> String {
+    private func formatRemainingTime(_ timeInSeconds: Double) -> String {
         let totalSeconds = Int(timeInSeconds)
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
@@ -424,8 +398,7 @@ struct AudioPlayerView: View {
         }
 
         let timeString = parts.joined(separator: " ")
-
-        return "(\(timeString))"
+        return timeString
     }
 
     private var placeholderCover: some View {
@@ -437,6 +410,20 @@ struct AudioPlayerView: View {
                 Image(systemName: "book.fill")
                     .font(.system(size: geometry.size.width * 0.27))
                     .foregroundColor(.gray)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    private var emptyStateCover: some View {
+        GeometryReader { geometry in
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.gray.opacity(0.3))
+
+                Image(systemName: "plus")
+                    .font(.system(size: geometry.size.width * 0.27))
+                    .foregroundColor(Color(UIColor.systemBackground))
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -579,5 +566,9 @@ struct SleepTimerView: View {
 }
 
 #Preview {
-    AudioPlayerView(playerManager: AudioPlayerManager(), onCollapse: {})
+    AudioPlayerView(
+        playerManager: AudioPlayerManager(),
+        showingAddBook: .constant(false),
+        onShowBookSelection: {}
+    )
 }

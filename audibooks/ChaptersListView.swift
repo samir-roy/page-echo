@@ -46,13 +46,6 @@ struct ChaptersListView: View {
             }
             .navigationTitle("Chapters")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
         }
     }
 }
