@@ -424,9 +424,8 @@ struct AudioPlayerView: View {
         }
 
         let timeString = parts.joined(separator: " ")
-        let speedString = String(format: "%.2fx", speed)
 
-        return "\(timeString) left (\(speedString))"
+        return "(\(timeString))"
     }
 
     private var placeholderCover: some View {

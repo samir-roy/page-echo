@@ -104,87 +104,111 @@ struct AudiobookRow: View {
     let playerManager: AudioPlayerManager
 
     var body: some View {
-        HStack(alignment: .center, spacing: 18) {
-            // Cover art - use .id() to maintain stable identity
-            Group {
-                if let coverData = audiobook.coverImageData,
-                   let uiImage = UIImage(data: coverData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 90, height: 90)
-                        .cornerRadius(12)
-                        .clipped()
-                } else if let coverURL = audiobook.coverImageURL,
-                          let url = URL(string: coverURL) {
-                    AsyncImage(url: url) { image in
-                        image
+        GeometryReader { geometry in
+            let totalWidth = geometry.size.width
+            let sideWidth = totalWidth * 0.25
+            let centerWidth = totalWidth * 0.5
+            let coverSize = centerWidth
+
+            HStack(spacing: 15) {
+                ProgressPieChart(progress: audiobook.percentComplete / 100.0)
+                    .frame(width: sideWidth)
+
+                Group {
+                    if let coverData = audiobook.coverImageData,
+                       let uiImage = UIImage(data: coverData) {
+                        Image(uiImage: uiImage)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        placeholderCover
+                            .frame(width: coverSize, height: coverSize)
+                            .cornerRadius(12)
+                            .clipped()
+                    } else if let coverURL = audiobook.coverImageURL,
+                              let url = URL(string: coverURL) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            placeholderCover(size: coverSize)
+                        }
+                        .frame(width: coverSize, height: coverSize)
+                        .cornerRadius(12)
+                        .clipped()
+                    } else {
+                        placeholderCover(size: coverSize)
                     }
-                    .frame(width: 90, height: 90)
-                    .cornerRadius(12)
-                    .clipped()
-                } else {
-                    placeholderCover
                 }
+                .frame(width: coverSize, height: coverSize)
+                .padding(.top, 10)
+                .id("cover-\(audiobook.id)")
+
+                ZStack {
+                    if playerManager.currentAudiobook?.id == audiobook.id && playerManager.isPlaying {
+                        AnimatedHistogram()
+                            .id(audiobook.id)
+                    } else {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundColor(.gray)
+                    }
+                }
+                .frame(width: sideWidth)
             }
-            .id("cover-\(audiobook.id)")
-
-            // Title and progress
-            VStack(alignment: .leading, spacing: 6) {
-                Text(audiobook.title)
-                    .font(.title3)
-                    .lineLimit(2)
-
-                Text("\(Int(audiobook.percentComplete))% complete")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                Text("\(audiobook.currentPosition.formattedTime()) / \(audiobook.duration.formattedTime())")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            // Animated histogram - only show if this book is currently playing
-            PlayingIndicator(
-                audiobookID: audiobook.id,
-                playerManager: playerManager
-            )
+            .frame(width: totalWidth)
         }
-        .padding(.vertical, 8)
+        .frame(height: UIScreen.main.bounds.width * 0.5)
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         .alignmentGuide(.listRowSeparatorTrailing) { d in d[.trailing] }
     }
 
-    private var placeholderCover: some View {
+    private func placeholderCover(size: CGFloat) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.gray.opacity(0.3))
-                .frame(width: 90, height: 90)
+                .frame(width: size, height: size)
 
             Image(systemName: "book.fill")
-                .font(.title)
+                .font(.system(size: size * 0.3))
                 .foregroundColor(.gray)
         }
     }
 }
 
-// Wrapper view that only observes playing state for this specific audiobook
-struct PlayingIndicator: View {
-    let audiobookID: UUID
-    @ObservedObject var playerManager: AudioPlayerManager
+// Progress pie chart view
+struct ProgressPieChart: View {
+    let progress: Double // 0.0 to 1.0
 
     var body: some View {
-        // Only show histogram if this specific book is currently playing
-        if playerManager.currentAudiobook?.id == audiobookID && playerManager.isPlaying {
-            AnimatedHistogram()
-                .id(audiobookID) // Maintain stable identity
+        ZStack {
+            // Progress pie slice (filled from center)
+            PieSlice(progress: progress)
+                .fill(Color.gray)
+
+            // Circle outline along circumference
+            Circle()
+                .stroke(Color.gray, lineWidth: 2)
         }
+        .frame(width: 20, height: 20)
+    }
+}
+
+// Custom shape for pie slice (inverted - fills the remaining portion)
+struct PieSlice: Shape {
+    let progress: Double
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = min(rect.width, rect.height) / 2
+        let startAngle = Angle(degrees: -90 + (360 * progress)) // Start from progress point
+        let endAngle = Angle(degrees: -90 + 360) // End at full circle
+
+        path.move(to: center)
+        path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+        path.closeSubpath()
+
+        return path
     }
 }
 
@@ -196,7 +220,7 @@ struct AnimatedHistogram: View {
         HStack(alignment: .center, spacing: 3) {
             ForEach(0..<5) { index in
                 Capsule()
-                    .fill(Color.primary)
+                    .fill(Color.gray)
                     .frame(width: 3, height: maxHeight(for: index) * barHeights[index])
             }
         }
