@@ -31,12 +31,12 @@ struct CustomProgressBar: View {
             ZStack(alignment: .leading) {
                 // Background track
                 RoundedRectangle(cornerRadius: isDragging ? 8 : 4)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.white.opacity(0.2))
                     .frame(height: isDragging ? 16 : 8)
 
                 // Progress fill
                 RoundedRectangle(cornerRadius: isDragging ? 8 : 4)
-                    .fill(Color.primary)
+                    .fill(Color.white)
                     .frame(
                         width: max(isDragging ? 16 : 8, geometry.size.width * progress),
                         height: isDragging ? 16 : 8
@@ -142,7 +142,7 @@ struct AudioPlayerView: View {
 
                         ProgressView(value: audiobook.percentComplete, total: 100.0)
                             .progressViewStyle(.linear)
-                            .tint(.primary)
+                            .tint(.white)
                             .padding(.horizontal, 60)
                             .padding(.top, 8)
                     }
@@ -150,7 +150,7 @@ struct AudioPlayerView: View {
                     emptyStateCover
                     ProgressView(value: 0.0, total: 100.0)
                         .progressViewStyle(.linear)
-                        .tint(.primary)
+                        .tint(.white)
                         .padding(.horizontal, 60)
                         .padding(.top, 8)
                 }
@@ -174,7 +174,7 @@ struct AudioPlayerView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .font(.title3)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
 
                     // Chapter button
@@ -183,11 +183,11 @@ struct AudioPlayerView: View {
                     }) {
                         Text(chapter.title)
                             .font(.caption)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                             .lineLimit(1)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
-                            .background(Color.secondary.opacity(0.2))
+                            .background(Color.white.opacity(0.2))
                             .cornerRadius(8)
                     }
 
@@ -197,7 +197,7 @@ struct AudioPlayerView: View {
                     }) {
                         Image(systemName: "chevron.right")
                             .font(.title3)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                 }
             }
@@ -225,7 +225,7 @@ struct AudioPlayerView: View {
                     } label: {
                         Text("(\(formatRemainingTime(adjustedRemaining)) @ \(playerManager.playbackSpeed, specifier: "%.2f")x)")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.white.opacity(0.7))
                             .padding(.horizontal, 12)
                     }
                     .disabled(playerManager.currentAudiobook == nil)
@@ -233,14 +233,14 @@ struct AudioPlayerView: View {
                     HStack {
                         Text(values.elapsed.formattedTime())
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.white.opacity(0.7))
                             .monospacedDigit()
 
                         Spacer()
 
                         Text("-" + (values.end - playerManager.currentTime).formattedTime())
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.white.opacity(0.7))
                             .monospacedDigit()
                     }
                 }
@@ -258,7 +258,7 @@ struct AudioPlayerView: View {
                 }) {
                     Image(systemName: "gobackward.15")
                         .font(.system(size: 30))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                 }
                 .disabled(playerManager.currentAudiobook == nil)
 
@@ -268,7 +268,7 @@ struct AudioPlayerView: View {
                 }) {
                     Image(systemName: playerManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 80))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                 }
                 .disabled(playerManager.currentAudiobook == nil)
 
@@ -278,7 +278,7 @@ struct AudioPlayerView: View {
                 }) {
                     Image(systemName: "goforward.30")
                         .font(.system(size: 30))
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                 }
                 .disabled(playerManager.currentAudiobook == nil)
             }
@@ -291,17 +291,26 @@ struct AudioPlayerView: View {
             } label: {
                 Text(playerManager.sleepTimerRemaining.map { formatTimerRemaining($0) } ?? "Sleep")
                     .font(.caption)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.white)
                     .frame(width: 50)
                     .padding(.vertical, 6)
-                    .background(Color.secondary.opacity(0.2))
+                    .background(Color.white.opacity(0.2))
                     .cornerRadius(8)
             }
             .disabled(playerManager.currentAudiobook == nil)
             .padding(.bottom, 10)
         }
         .padding()
-        .background(Color(UIColor.systemBackground))
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0, green: 0, blue: 0),
+                    Color(red: 22/255, green: 22/255, blue: 22/255)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
         .sheet(isPresented: $showChaptersList) {
             if let audiobook = playerManager.currentAudiobook {
                 ChaptersListView(
@@ -419,11 +428,11 @@ struct AudioPlayerView: View {
         GeometryReader { geometry in
             ZStack {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.white.opacity(0.3))
 
                 Image(systemName: "plus")
                     .font(.system(size: geometry.size.width * 0.27))
-                    .foregroundColor(Color(UIColor.systemBackground))
+                    .foregroundColor(Color.black)
             }
         }
         .aspectRatio(1, contentMode: .fit)

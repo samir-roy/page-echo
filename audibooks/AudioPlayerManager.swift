@@ -30,7 +30,6 @@ class AudioPlayerManager: NSObject, ObservableObject {
     private var sleepTimerEndTime: Date?
     private var sleepTimerType: SleepTimerType = .minutes(0)
     private var modelContext: ModelContext?
-    private var nextChapterBoundaryTime: Double?
     private var isUIUpdatesPaused = false
 
     enum SleepTimerType {
@@ -479,7 +478,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
                 self.currentAudiobook?.currentPosition = player.currentTime
 
                 // Update chapter when we cross a chapter boundary
-                if let boundary = self.nextChapterBoundaryTime, player.currentTime >= boundary {
+                if let currentChapter = self.currentChapter, currentChapter.endTime < player.currentTime {
                     let previousChapter = self.currentChapter
                     self.updateCurrentChapter()
 
@@ -496,7 +495,6 @@ class AudioPlayerManager: NSObject, ObservableObject {
     private func updateCurrentChapter(for time: Double? = nil) {
         guard let audiobook = currentAudiobook else {
             currentChapter = nil
-            nextChapterBoundaryTime = nil
             return
         }
 
@@ -509,22 +507,8 @@ class AudioPlayerManager: NSObject, ObservableObject {
         if currentChapter?.id != chapter?.id {
             currentChapter = chapter
         }
-
-        // Calculate when the next chapter starts
-        calculateNextChapterBoundary(for: timeToCheck)
     }
 
-    private func calculateNextChapterBoundary(for time: Double) {
-        guard let audiobook = currentAudiobook, !audiobook.chapters.isEmpty else {
-            nextChapterBoundaryTime = nil
-            return
-        }
-
-        // Find the next chapter that starts after the current time
-        nextChapterBoundaryTime = audiobook.chapters.first { chapter in
-            chapter.startTime > time
-        }?.startTime
-    }
 
     private func stopTimer() {
         timer?.invalidate()
