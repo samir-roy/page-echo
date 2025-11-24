@@ -15,37 +15,45 @@ struct ChaptersListView: View {
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach(chapters) { chapter in
-                    Button(action: {
-                        onChapterSelect(chapter)
-                        dismiss()
-                    }) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(chapter.title)
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(chapters) { chapter in
+                        Button(action: {
+                            onChapterSelect(chapter)
+                            dismiss()
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(chapter.title)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
 
-                                Text(chapter.startTime.formattedTime())
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    Text(chapter.startTime.formattedTime())
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Spacer()
+
+                                if currentChapter?.id == chapter.id {
+                                    Image(systemName: "speaker.wave.2.fill")
+                                        .foregroundColor(.blue)
+                                }
                             }
-
-                            Spacer()
-
-                            if currentChapter?.id == chapter.id {
-                                Image(systemName: "speaker.wave.2.fill")
-                                    .foregroundColor(.blue)
-                            }
+                            .contentShape(Rectangle())
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .id(chapter.id)
                     }
-                    .buttonStyle(.plain)
+                }
+                .navigationTitle("Chapters")
+                .navigationBarTitleDisplayMode(.inline)
+                .onAppear {
+                    if let currentChapter = currentChapter {
+                        proxy.scrollTo(currentChapter.id, anchor: .center)
+                    }
                 }
             }
-            .navigationTitle("Chapters")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
