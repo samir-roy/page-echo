@@ -112,10 +112,10 @@ struct AudioPlayerView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Spacer()
-
-            // Album art
-            Group {
+            // Cover Art
+            Button {
+                onShowBookSelection()
+            } label: {
                 if let audiobook = playerManager.currentAudiobook {
                     Group {
                         if let coverData = audiobook.coverImageData,
@@ -139,27 +139,35 @@ struct AudioPlayerView: View {
                         } else {
                             placeholderCover
                         }
-
-                        ProgressView(value: audiobook.percentComplete, total: 100.0)
-                            .progressViewStyle(.linear)
-                            .tint(.white)
-                            .padding(.horizontal, 60)
-                            .padding(.top, 8)
                     }
                 } else {
                     emptyStateCover
-                    ProgressView(value: 0.0, total: 100.0)
-                        .progressViewStyle(.linear)
-                        .tint(.white)
-                        .padding(.horizontal, 60)
-                        .padding(.top, 8)
                 }
             }
             .padding(.horizontal, 20)
+            .padding(.top, 15)
             .contentShape(Rectangle())
-            .onTapGesture {
-                onShowBookSelection()
+
+            let remainingSeconds = playerManager.duration - playerManager.currentTime
+            let adjustedRemaining = remainingSeconds / Double(playerManager.playbackSpeed)
+            // Playback speed
+            Button {
+                showSpeedPicker = true
+            } label: {
+                VStack(spacing: 8) {
+                    ProgressView(value: playerManager.currentAudiobook?.percentComplete ?? 0.0, total: 100.0)
+                        .progressViewStyle(.linear)
+                        .tint(.white)
+                        .padding(.horizontal, 60)
+
+                    Text("\(formatRemainingTime(adjustedRemaining)) × \(playerManager.playbackSpeed, specifier: "%.2f")")
+                        .font(.caption)
+                        .foregroundColor(Color.white.opacity(0.7))
+                        .padding(.horizontal, 12)
+                }
             }
+            .disabled(playerManager.currentAudiobook == nil)
+            .padding(.top, 10)
 
             Spacer()
 
@@ -216,39 +224,22 @@ struct AudioPlayerView: View {
                 )
 
                 // Time labels
-                ZStack {
-                    let remainingSeconds = playerManager.duration - playerManager.currentTime
-                    let adjustedRemaining = remainingSeconds / Double(playerManager.playbackSpeed)
-                    // Playback speed
-                    Button {
-                        showSpeedPicker = true
-                    } label: {
-                        Text("(\(formatRemainingTime(adjustedRemaining)) @ \(playerManager.playbackSpeed, specifier: "%.2f")x)")
-                            .font(.caption)
-                            .foregroundColor(Color.white.opacity(0.7))
-                            .padding(.horizontal, 12)
-                    }
-                    .disabled(playerManager.currentAudiobook == nil)
+                HStack {
+                    Text(values.elapsed.formattedTime())
+                        .font(.caption)
+                        .foregroundColor(Color.white.opacity(0.7))
+                        .monospacedDigit()
 
-                    HStack {
-                        Text(values.elapsed.formattedTime())
-                            .font(.caption)
-                            .foregroundColor(Color.white.opacity(0.7))
-                            .monospacedDigit()
+                    Spacer()
 
-                        Spacer()
-
-                        Text("-" + (values.end - playerManager.currentTime).formattedTime())
-                            .font(.caption)
-                            .foregroundColor(Color.white.opacity(0.7))
-                            .monospacedDigit()
-                    }
+                    Text("-" + (values.end - playerManager.currentTime).formattedTime())
+                        .font(.caption)
+                        .foregroundColor(Color.white.opacity(0.7))
+                        .monospacedDigit()
                 }
             }
             .padding(.horizontal)
-            .padding(.top, 10)
-
-            Spacer()
+            .padding(.bottom, 15)
 
             // Playback controls
             HStack(spacing: 40) {
@@ -298,7 +289,7 @@ struct AudioPlayerView: View {
                     .cornerRadius(8)
             }
             .disabled(playerManager.currentAudiobook == nil)
-            .padding(.bottom, 10)
+            .padding(.bottom, 15)
         }
         .padding()
         .background(
@@ -454,7 +445,7 @@ struct SpeedPickerView: View {
                         onSpeedSelect(speed)
                     } label: {
                         HStack {
-                            Text(String(format: "%.2fx", speed))
+                            Text(String(format: "%.2f×", speed))
                                 .foregroundColor(.primary)
                             Spacer()
                             if abs(currentSpeed - speed) < 0.01 {

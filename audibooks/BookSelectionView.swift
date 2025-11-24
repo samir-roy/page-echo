@@ -106,6 +106,8 @@ struct BookGridItem: View {
     let onTap: () -> Void
     let onLongPress: () -> Void
 
+    @State private var isPressed = false
+
     var body: some View {
         VStack(spacing: 8) {
             Group {
@@ -133,10 +135,13 @@ struct BookGridItem: View {
             }
             .aspectRatio(1, contentMode: .fit)
             .contentShape(Rectangle())
+            .opacity(isPressed ? 0.4 : 1.0)
             .onTapGesture {
                 onTap()
             }
-            .onLongPressGesture(minimumDuration: 0.5) {
+            .onLongPressGesture(pressing: { pressing in
+                isPressed = pressing
+            }) {
                 onLongPress()
             }
 
@@ -165,19 +170,20 @@ struct AddBookGridItem: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.3))
-
-                Image(systemName: "plus")
-                    .font(.system(size: 50))
-                    .fontWeight(.bold)
-                    .foregroundColor(Color(UIColor.systemBackground))
-            }
-            .aspectRatio(1, contentMode: .fit)
-            .contentShape(Rectangle())
-            .onTapGesture {
+            Button {
                 onTap()
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.3))
+
+                    Image(systemName: "plus")
+                        .font(.system(size: 50))
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(UIColor.systemBackground))
+                }
+                .aspectRatio(1, contentMode: .fit)
+                .contentShape(Rectangle())
             }
 
             ProgressView(value: 0.0, total: 100.0)
