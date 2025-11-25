@@ -31,6 +31,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
     private var sleepTimerType: SleepTimerType = .minutes(0)
     private var modelContext: ModelContext?
     private var isUIUpdatesPaused = false
+    private var chapterBoundaryTimer: Timer?
 
     enum SleepTimerType {
         case minutes(Int)
@@ -224,7 +225,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
 
     func pauseUIUpdates() {
         isUIUpdatesPaused = true
-        stopTimer()
+        stopTimer(forBackground: true)
     }
 
     func resumeUIUpdates() {
@@ -235,6 +236,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
             currentTime = player.currentTime
             currentAudiobook?.currentPosition = player.currentTime
             updateCurrentChapter()
+            updateNowPlayingInfo()
         }
 
         updateSleepTimerRemaining()
@@ -329,6 +331,9 @@ class AudioPlayerManager: NSObject, ObservableObject {
         currentAudiobook?.currentPosition = actualTime
         savePosition()
         updateNowPlayingInfo()
+        if isPlaying {
+            scheduleNextChapterBoundaryCheck()
+        }
     }
 
     func skipForward(_ seconds: Double = 15) {
@@ -348,6 +353,9 @@ class AudioPlayerManager: NSObject, ObservableObject {
         audioPlayer?.rate = speed
         currentAudiobook?.playbackSpeed = speed
         updateNowPlayingInfo()
+        if isPlaying {
+            scheduleNextChapterBoundaryCheck()
+        }
     }
 
     func nextChapter() {
@@ -490,6 +498,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
                 self.updateSleepTimerRemaining()
             }
         }
+        scheduleNextChapterBoundaryCheck()
     }
 
     private func updateCurrentChapter(for time: Double? = nil) {
@@ -510,9 +519,50 @@ class AudioPlayerManager: NSObject, ObservableObject {
     }
 
 
-    private func stopTimer() {
+    private func stopTimer(forBackground: Bool = false) {
         timer?.invalidate()
         timer = nil
+        if (!forBackground) {
+            chapterBoundaryTimer?.invalidate()
+            chapterBoundaryTimer = nil
+        }
+    }
+
+    private func scheduleNextChapterBoundaryCheck() {
+        chapterBoundaryTimer?.invalidate()
+        chapterBoundaryTimer = nil
+
+        guard let audiobook = currentAudiobook,
+              let player = audioPlayer,
+              !audiobook.chapters.isEmpty,
+              let currentChapter = currentChapter else {
+            return
+        }
+
+        // Calculate time until next chapter boundary
+        currentTime = player.currentTime
+        let timeUntilNextChapter = currentChapter.endTime - currentTime
+
+        guard timeUntilNextChapter > 0 else {
+            Task { @MainActor in
+                self.updateCurrentChapter()
+                self.updateNowPlayingInfo()
+                self.scheduleNextChapterBoundaryCheck()
+            }
+            return
+        }
+
+        let realTimeUntilNextChapter = timeUntilNextChapter / Double(playbackSpeed)
+        chapterBoundaryTimer = Timer.scheduledTimer(withTimeInterval: realTimeUntilNextChapter, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            Task { @MainActor in
+                guard let player = self.audioPlayer else { return }
+                self.currentTime = player.currentTime
+                self.updateCurrentChapter()
+                self.updateNowPlayingInfo()
+                self.scheduleNextChapterBoundaryCheck()
+            }
+        }
     }
 
     private func startSaveTimer() {
@@ -541,9 +591,11 @@ class AudioPlayerManager: NSObject, ObservableObject {
         let currentTimer = timer
         let currentSaveTimer = saveTimer
         let currentSleepTimer = sleepTimer
+        let currentChapterBoundaryTimer = chapterBoundaryTimer
         currentTimer?.invalidate()
         currentSaveTimer?.invalidate()
         currentSleepTimer?.invalidate()
+        currentChapterBoundaryTimer?.invalidate()
         NotificationCenter.default.removeObserver(self)
     }
 }
