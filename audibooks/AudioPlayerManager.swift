@@ -353,6 +353,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
         }
 
         updateNowPlayingInfo()
+        recalculateChapterBasedSleepTimer()
     }
 
     func seek(to time: Double) {
@@ -364,6 +365,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
         currentAudiobook?.currentPosition = actualTime
         savePosition()
         updateNowPlayingInfo()
+        recalculateChapterBasedSleepTimer()
         if isPlaying {
             scheduleNextChapterBoundaryCheck()
         }
@@ -386,6 +388,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
         audioPlayer?.rate = speed
         currentAudiobook?.playbackSpeed = speed
         updateNowPlayingInfo()
+        recalculateChapterBasedSleepTimer()
         if isPlaying {
             scheduleNextChapterBoundaryCheck()
         }
@@ -462,6 +465,25 @@ class AudioPlayerManager: NSObject, ObservableObject {
         sleepTimer = nil
 
         sleepTimerType = .endOfChapters(count)
+        recalculateChapterBasedSleepTimer()
+    }
+
+    private func recalculateChapterBasedSleepTimer() {
+        guard case .endOfChapters(let count) = sleepTimerType, count > 0 else { return }
+
+        guard let audiobook = currentAudiobook,
+              let chapter = currentChapter,
+              !audiobook.chapters.isEmpty else {
+            sleepTimer?.invalidate()
+            sleepTimer = nil
+            sleepTimerEndTime = nil
+            sleepTimerRemaining = nil
+            sleepTimerType = .minutes(0)
+            return
+        }
+
+        sleepTimer?.invalidate()
+        sleepTimer = nil
 
         // Find the end time of the target chapter
         var targetEndTime = chapter.endTime
@@ -525,6 +547,7 @@ class AudioPlayerManager: NSObject, ObservableObject {
 
                     if previousChapter?.id != self.currentChapter?.id {
                         self.updateNowPlayingInfo()
+                        self.recalculateChapterBasedSleepTimer()
                     }
                 }
 

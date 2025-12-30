@@ -435,33 +435,32 @@ struct SpeedPickerView: View {
     let onSpeedSelect: (Float) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    let speeds: [Float] = [1.75, 1.5, 1.35, 1.2, 1.0, 0.75]
+    let speeds: [Float] = stride(from: 0.50, through: 3.00, by: 0.05).map { Float($0) }
+
+    @State private var selectedSpeed: Float
+
+    init(currentSpeed: Float, onSpeedSelect: @escaping (Float) -> Void) {
+        self.currentSpeed = currentSpeed
+        self.onSpeedSelect = onSpeedSelect
+        _selectedSpeed = State(initialValue: currentSpeed)
+    }
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach(speeds, id: \.self) { speed in
-                    Button {
-                        onSpeedSelect(speed)
-                    } label: {
-                        HStack {
-                            Text(String(format: "%.2f×", speed))
-                                .foregroundColor(.primary)
-                            Spacer()
-                            if abs(currentSpeed - speed) < 0.01 {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        .contentShape(Rectangle())
+            VStack {
+                Picker("Playback Speed", selection: $selectedSpeed) {
+                    ForEach(speeds, id: \.self) { speed in
+                        Text(String(format: "%.2f×", speed))
+                            .font(.title2)
+                            .tag(speed)
                     }
-                    .buttonStyle(.plain)
-                    .listRowSeparator(speed == 0.75 ? .hidden : .visible, edges: speed == 1.75 ? .bottom : .all)
+                }
+                .pickerStyle(.wheel)
+                .onChange(of: selectedSpeed) { oldValue, newValue in
+                    onSpeedSelect(newValue)
                 }
             }
             .padding(.top, 24)
-            .listStyle(.plain)
-            .scrollDisabled(true)
         }
         .presentationDragIndicator(.hidden)
     }
